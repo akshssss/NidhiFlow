@@ -1,0 +1,476 @@
+// ── Prisma Schema for NidhiFlow ──
+// Complete database model for the two-sided startup-investor marketplace
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Enums ──
+
+enum UserRole {
+  STARTUP
+  INVESTOR
+  ADMIN
+}
+
+enum VerificationStatus {
+  PENDING
+  UNDER_REVIEW
+  VERIFIED
+  REJECTED
+}
+
+enum StartupStage {
+  IDEA
+  MVP
+  PRE_SEED
+  SEED
+  SERIES_A
+  SERIES_B_PLUS
+}
+
+enum InvestorType {
+  ANGEL
+  VC
+  FAMILY_OFFICE
+  HNI
+  CORPORATE
+}
+
+enum InterestStatus {
+  EXPRESSED
+  ACCEPTED
+  DECLINED
+  COMMITTED
+  WITHDRAWN
+}
+
+enum NotificationType {
+  INTEREST_RECEIVED
+  INTEREST_ACCEPTED
+  INTEREST_DECLINED
+  MESSAGE_RECEIVED
+  VERIFICATION_UPDATE
+  REVIEW_RECEIVED
+  LEADERBOARD_CHANGE
+}
+
+// ── Core User ──
+
+model User {
+  id                String    @id @default(uuid())
+  email             String    @unique
+  passwordHash      String
+  name              String
+  role              UserRole
+  emailVerified     Boolean   @default(false)
+  emailVerifyToken  String?
+  passwordResetToken String?
+  passwordResetExpiry DateTime?
+  isActive          Boolean   @default(true)
+  lastLoginAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime? // soft delete
+
+  startup           Startup?
+  investor          Investor?
+  notifications     Notification[]
+  sentMessages      ChatMessage[]  @relation("SentMessages")
+  chatRooms         ChatRoomMember[]
+  auditLogs         AuditLog[]
+
+  @@index([email])
+  @@index([role])
+  @@map("users")
+}
+
+// ── Startup ──
+
+model Startup {
+  id                String          @id @default(uuid())
+  userId            String          @unique
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Company info
+  companyName       String
+  tagline           String?
+  logoUrl           String?
+  sector            String
+  stage             StartupStage
+  city              String
+  state             String
+  foundedYear       Int
+  teamSize          Int?
+  website           String?
+  linkedin          String?
+  description       String?
+  problemStatement  String?
+  solution          String?
+  targetMarket      String?
+  businessModel     String?
+
+  // Traction metrics
+  mrr               BigInt          @default(0) // stored in paise
+  totalUsers        Int             @default(0)
+  growthRateMom     Float           @default(0) // month-over-month %
+  
+  // Funding
+  fundingAsk        BigInt          @default(0) // stored in paise
+  equityOffered     Float           @default(0) // percentage
+  useOfFunds        String?
+  pitchDeckUrl      String?
+  demoVideoUrl      String?
+
+  // Verification
+  verificationStatus VerificationStatus @default(PENDING)
+  verificationNote   String?
+  verifiedAt         DateTime?
+
+  // Verification documents
+  cin               String?
+  llpin             String?
+  companyPan        String?
+  dpiitNumber       String?
+  gstin             String?
+  founderIdProofUrl String?
+
+  // Leaderboard
+  leaderboardScore  Float           @default(0)
+  leaderboardRank   Int?
+  previousRank      Int?
+  profileCompleteness Float        @default(0)
+
+  // Metadata
+  profileViews      Int             @default(0)
+  isPublished       Boolean         @default(false)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  deletedAt         DateTime?
+
+  // Relations
+  teamMembers       TeamMember[]
+  milestones        Milestone[]
+  updates           StartupUpdate[]
+  interestsReceived Interest[]
+  tractionHistory   TractionSnapshot[]
+  documents         Document[]
+  reviews           Review[]        @relation("ReviewedStartupReviews")
+
+  @@index([sector])
+  @@index([stage])
+  @@index([state])
+  @@index([verificationStatus])
+  @@index([leaderboardScore(sort: Desc)])
+  @@index([fundingAsk])
+  @@map("startups")
+}
+
+model TeamMember {
+  id          String   @id @default(uuid())
+  startupId   String
+  startup     Startup  @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  name        String
+  role        String
+  linkedin    String?
+  imageUrl    String?
+  createdAt   DateTime @default(now())
+
+  @@map("team_members")
+}
+
+model Milestone {
+  id          String   @id @default(uuid())
+  startupId   String
+  startup     Startup  @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  date        DateTime
+  achieved    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@map("milestones")
+}
+
+model StartupUpdate {
+  id          String   @id @default(uuid())
+  startupId   String
+  startup     Startup  @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  title       String
+  content     String
+  isPublic    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([startupId, createdAt(sort: Desc)])
+  @@map("startup_updates")
+}
+
+model TractionSnapshot {
+  id          String   @id @default(uuid())
+  startupId   String
+  startup     Startup  @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  mrr         BigInt   @default(0)
+  totalUsers  Int      @default(0)
+  growthRate  Float    @default(0)
+  recordedAt  DateTime @default(now())
+
+  @@index([startupId, recordedAt(sort: Desc)])
+  @@map("traction_snapshots")
+}
+
+// ── Investor ──
+
+model Investor {
+  id                String          @id @default(uuid())
+  userId            String          @unique
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Profile
+  displayName       String
+  type              InvestorType
+  firmName          String?
+  bio               String?
+  thesis            String?
+  avatarUrl         String?
+  sectors           String[]        // stored as array
+  stagePreference   String[]
+  ticketSizeMin     BigInt          @default(0) // paise
+  ticketSizeMax     BigInt          @default(0) // paise
+  geographyPreference String[]
+  pastInvestments   String?
+  linkedin          String?
+  website           String?
+
+  // Verification
+  verificationStatus VerificationStatus @default(PENDING)
+  verificationNote   String?
+  verifiedAt         DateTime?
+
+  // Verification documents
+  pan               String?
+  sebiRegistration  String?
+  netWorthDeclaration Boolean      @default(false)
+  accreditedInvestor  Boolean      @default(false)
+
+  // Rating
+  averageRating     Float           @default(0)
+  totalReviews      Int             @default(0)
+  leaderboardRank   Int?
+  previousRank      Int?
+
+  // Metadata
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  deletedAt         DateTime?
+
+  // Relations
+  interestsSent     Interest[]
+  documents         Document[]
+  reviewsReceived   Review[]
+
+  @@index([type])
+  @@index([verificationStatus])
+  @@index([averageRating(sort: Desc)])
+  @@map("investors")
+}
+
+// ── Documents (for verification) ──
+
+model Document {
+  id          String   @id @default(uuid())
+  startupId   String?
+  startup     Startup? @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  investorId  String?
+  investor    Investor? @relation(fields: [investorId], references: [id], onDelete: Cascade)
+  
+  type        String   // 'id_proof', 'pan', 'cin_certificate', 'pitch_deck', etc.
+  fileName    String
+  fileUrl     String
+  fileSize    Int
+  mimeType    String
+  encryptionKey String? // for at-rest encryption
+  isVerified  Boolean  @default(false)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([startupId])
+  @@index([investorId])
+  @@map("documents")
+}
+
+// ── Interest / Deal flow ──
+
+model Interest {
+  id              String          @id @default(uuid())
+  investorId      String
+  investor        Investor        @relation(fields: [investorId], references: [id], onDelete: Cascade)
+  startupId       String
+  startup         Startup         @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  
+  status          InterestStatus  @default(EXPRESSED)
+  ticketAmount    BigInt          // paise
+  message         String?
+  
+  // Commitment tracking
+  committedAt     DateTime?
+  startupConfirmed Boolean       @default(false)
+  investorConfirmed Boolean      @default(false)
+  
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  // Relations
+  review          Review?
+  chatRoom        ChatRoom?
+
+  @@unique([investorId, startupId])
+  @@index([startupId, status])
+  @@index([investorId, status])
+  @@map("interests")
+}
+
+// ── Chat ──
+
+model ChatRoom {
+  id          String          @id @default(uuid())
+  interestId  String          @unique
+  interest    Interest        @relation(fields: [interestId], references: [id], onDelete: Cascade)
+  isActive    Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  members     ChatRoomMember[]
+  messages    ChatMessage[]
+
+  @@map("chat_rooms")
+}
+
+model ChatRoomMember {
+  id          String   @id @default(uuid())
+  chatRoomId  String
+  chatRoom    ChatRoom @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isBlocked   Boolean  @default(false)
+  lastReadAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@unique([chatRoomId, userId])
+  @@map("chat_room_members")
+}
+
+model ChatMessage {
+  id          String   @id @default(uuid())
+  chatRoomId  String
+  chatRoom    ChatRoom @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
+  senderId    String
+  sender      User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  
+  content     String
+  fileUrl     String?
+  fileName    String?
+  fileSize    Int?
+  mimeType    String?
+  isRead      Boolean  @default(false)
+  readAt      DateTime?
+  
+  createdAt   DateTime @default(now())
+  deletedAt   DateTime? // soft delete
+
+  @@index([chatRoomId, createdAt(sort: Desc)])
+  @@map("chat_messages")
+}
+
+// ── Reviews (Startups rate Investors) ──
+
+model Review {
+  id                  String   @id @default(uuid())
+  interestId          String   @unique
+  interest            Interest @relation(fields: [interestId], references: [id], onDelete: Cascade)
+  investorId          String
+  investor            Investor @relation(fields: [investorId], references: [id], onDelete: Cascade)
+  startupId           String
+  startup             Startup  @relation("ReviewedStartupReviews", fields: [startupId], references: [id], onDelete: Cascade)
+  
+  // Rating dimensions (1-5)
+  responsiveness      Int
+  transparency        Int
+  founderFriendliness Int
+  valueAdd            Int
+  followThrough       Int
+  decisionSpeed       Int
+  overallScore        Float    // computed average
+  
+  comment             String
+  investorReply       String?
+  investorRepliedAt   DateTime?
+  
+  isReported          Boolean  @default(false)
+  reportReason        String?
+  isModerated         Boolean  @default(false)
+  isHidden            Boolean  @default(false)
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([investorId, createdAt(sort: Desc)])
+  @@map("reviews")
+}
+
+// ── Notifications ──
+
+model Notification {
+  id          String           @id @default(uuid())
+  userId      String
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        NotificationType
+  title       String
+  body        String
+  data        Json?            // arbitrary payload
+  isRead      Boolean          @default(false)
+  readAt      DateTime?
+  createdAt   DateTime         @default(now())
+
+  @@index([userId, isRead, createdAt(sort: Desc)])
+  @@map("notifications")
+}
+
+// ── Audit Log ──
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id])
+  action      String   // e.g., 'VERIFY_STARTUP', 'REJECT_INVESTOR', 'LOGIN'
+  entityType  String?  // e.g., 'Startup', 'Investor', 'User'
+  entityId    String?
+  details     Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([entityType, entityId])
+  @@index([createdAt(sort: Desc)])
+  @@map("audit_logs")
+}
+
+// ── Saved / Shortlisted startups ──
+
+model SavedStartup {
+  id          String   @id @default(uuid())
+  investorId  String
+  startupId   String
+  createdAt   DateTime @default(now())
+
+  @@unique([investorId, startupId])
+  @@map("saved_startups")
+}
