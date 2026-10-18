@@ -8,8 +8,9 @@ import { formatINR, formatDate } from '@/lib/format';
 import { StatusBadge, VerifiedBadge } from '@/components/ui/Badge';
 import {
   Shield, Users, Building2, CheckCircle2, XCircle, AlertCircle,
-  RefreshCw, Search, FileText, Ban, Check, ArrowRight, X
+  RefreshCw, Search, FileText, Ban, Check, ArrowRight, X, Sparkles, Bot
 } from 'lucide-react';
+import { TinyFishAdminAuditModal } from '@/components/tinyfish/TinyFishAdminAuditModal';
 
 export default function AdminDashboardPage() {
   const { user, isLoading } = useAuth();
@@ -32,6 +33,29 @@ export default function AdminDashboardPage() {
   const [reviewTarget, setReviewTarget] = useState<{ type: 'startup' | 'investor'; item: any } | null>(null);
   const [reviewAction, setReviewAction] = useState<'VERIFIED' | 'REJECTED'>('VERIFIED');
   const [reviewNote, setReviewNote] = useState('');
+
+  // TinyFish Web Agent Audit modal state
+  const [tinyFishModalOpen, setTinyFishModalOpen] = useState(false);
+  const [tinyFishStartup, setTinyFishStartup] = useState<any>(null);
+
+  const handleOpenTinyFishModal = (startup: any) => {
+    setTinyFishStartup(startup);
+    setTinyFishModalOpen(true);
+  };
+
+  const handleApplyTinyFishRecommendation = async (decision: 'VERIFIED' | 'REJECTED', note: string) => {
+    if (!tinyFishStartup) return;
+    try {
+      await api.reviewStartupVerification(tinyFishStartup.id, {
+        status: decision,
+        note,
+      });
+      alert(`Verification ${decision === 'VERIFIED' ? 'Approved' : 'Rejected'} via TinyFish Agent Attestation.`);
+      loadData();
+    } catch (e: any) {
+      alert(e.message);
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -272,7 +296,14 @@ export default function AdminDashboardPage() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          onClick={() => handleOpenTinyFishModal(s)}
+                          className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-indigo-600/20 transition-all hover:scale-[1.02]"
+                        >
+                          <Sparkles className="w-3.5 h-3.5 text-indigo-200" />
+                          TinyFish Agent Audit
+                        </button>
                         <button
                           onClick={() => handleOpenReviewModal('startup', s, 'VERIFIED')}
                           className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm"
@@ -543,6 +574,17 @@ export default function AdminDashboardPage() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* ── TinyFish Compliance Audit Modal ── */}
+      {tinyFishStartup && (
+        <TinyFishAdminAuditModal
+          startupId={tinyFishStartup.id}
+          companyName={tinyFishStartup.companyName}
+          isOpen={tinyFishModalOpen}
+          onClose={() => setTinyFishModalOpen(false)}
+          onApplyRecommendation={handleApplyTinyFishRecommendation}
+        />
       )}
     </div>
   );

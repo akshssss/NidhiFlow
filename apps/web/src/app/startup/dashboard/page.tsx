@@ -10,8 +10,9 @@ import { VerifiedBadge, StatusBadge } from '@/components/ui/Badge';
 import {
   Building2, TrendingUp, Users, DollarSign, ShieldCheck,
   CheckCircle, Clock, AlertCircle, MessageSquare, Send,
-  Plus, Edit, ExternalLink, X, ArrowUpRight
+  Plus, Edit, ExternalLink, X, ArrowUpRight, Sparkles, Bot
 } from 'lucide-react';
+import { TinyFishAutoEnrichModal } from '@/components/tinyfish/TinyFishAutoEnrichModal';
 
 export default function StartupDashboardPage() {
   const { user, isLoading } = useAuth();
@@ -33,6 +34,26 @@ export default function StartupDashboardPage() {
   const [dpiit, setDpiit] = useState('');
   const [gstin, setGstin] = useState('');
   const [submittingVerify, setSubmittingVerify] = useState(false);
+
+  // TinyFish Auto-Enrichment modal state
+  const [enrichModalOpen, setEnrichModalOpen] = useState(false);
+
+  const handleApplyEnrichment = async (enriched: any) => {
+    try {
+      await api.updateMyStartup({
+        tagline: enriched.tagline,
+        description: enriched.description,
+        targetMarket: enriched.targetMarket,
+        businessModel: enriched.businessModel,
+        problemStatement: enriched.problemStatement,
+        solution: enriched.solution,
+      });
+      alert('Startup profile successfully auto-enriched using TinyFish Web Agent intelligence!');
+      fetchDashboard();
+    } catch (err: any) {
+      alert(err.message || 'Failed to apply auto-enrichment');
+    }
+  };
 
   const fetchDashboard = async () => {
     try {
@@ -178,6 +199,12 @@ export default function StartupDashboardPage() {
               >
                 <ExternalLink className="w-3.5 h-3.5" /> Public Pitch
               </Link>
+              <button
+                onClick={() => setEnrichModalOpen(true)}
+                className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm shadow-indigo-600/20 transition-all hover:scale-[1.02]"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-indigo-200" /> Auto-Enrich with TinyFish
+              </button>
               <button
                 onClick={() => setVerifyModalOpen(true)}
                 className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm"
@@ -523,6 +550,14 @@ export default function StartupDashboardPage() {
           </div>
         </div>
       )}
+
+      {/* ── TinyFish Auto-Enrichment Modal ── */}
+      <TinyFishAutoEnrichModal
+        isOpen={enrichModalOpen}
+        onClose={() => setEnrichModalOpen(false)}
+        currentWebsite={startup?.website || ''}
+        onApplyEnrichment={handleApplyEnrichment}
+      />
     </div>
   );
 }

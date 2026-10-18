@@ -72,6 +72,13 @@ FinTech/
 - Instant notifications (`/notifications`) for new EOIs, message requests, profile views, and verification status changes.
 - Immutable admin audit logs tracking verification decisions.
 
+### 7. TinyFish AI Web Agent Infrastructure & Autonomous Due Diligence
+- **Autonomous Diligence Reports**: Full web agents audit MCA/RoC incorporation filings, DPIIT Startup India registry, negative news, and litigation records.
+- **Investor Deal Diligence Card**: Live on startup profiles (`/startups/[id]`) with trust score gauges, web signals (TLS, tech stack), competitor matrix, and press citations.
+- **Interactive Web Agent Copilot**: Investors can query the TinyFish live agent for custom due diligence queries backed by direct web citations.
+- **Admin Verification Bot**: One-click autonomous audit execution in `/admin/dashboard` with step-by-step audit trails and recommendation applying (`APPROVE` / `REVIEW_REQUIRED` / `REJECT`).
+- **Founder Auto-Enrichment**: Founders can auto-extract business models, problem/solution, and tags directly from their website via TinyFish Fetch API.
+
 ---
 
 ## 🚀 Quick Start Guide

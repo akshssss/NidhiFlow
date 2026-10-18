@@ -161,4 +161,20 @@ export const api = {
   getUnreadNotificationsCount: () => api.get<any>('/notifications/unread-count'),
   markNotificationRead: (id: string) => api.put<any>(`/notifications/${id}/read`),
   markAllNotificationsRead: () => api.put<any>('/notifications/read-all'),
+
+  // TinyFish AI Web Agent Infrastructure
+  getTinyFishHealth: () => api.get<any>('/tinyfish/health'),
+  getTinyFishReport: (startupId: string) => api.get<any>(`/tinyfish/due-diligence/${startupId}`),
+  refreshTinyFishDueDiligence: (startupId: string, forceRefresh = true) =>
+    api.post<any>(`/tinyfish/due-diligence/${startupId}`, { forceRefresh }),
+  runTinyFishVerificationAgent: (startupId: string) =>
+    api.post<any>(`/tinyfish/verify-agent/${startupId}`),
+  enrichStartupFromUrl: (url: string) =>
+    api.post<any>('/tinyfish/enrich-url', { url }),
+  askTinyFishAgent: (startupId: string, question: string) =>
+    api.post<any>(`/tinyfish/ask-agent/${startupId}`, { question }),
+  searchTinyFish: (query: string, limit?: number) =>
+    api.post<any>('/tinyfish/search', { query, limit }),
+  fetchTinyFish: (urls: string[], format?: string, purpose?: string) =>
+    api.post<any>('/tinyfish/fetch', { urls, format, purpose }),
 };

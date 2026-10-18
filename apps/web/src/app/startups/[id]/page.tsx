@@ -12,6 +12,7 @@ import {
   Users, DollarSign, Calendar, Bookmark, MessageSquare, CheckCircle,
   FileText, ExternalLink, X, Send, Sparkles, AlertCircle
 } from 'lucide-react';
+import { TinyFishDueDiligenceCard } from '@/components/tinyfish/TinyFishDueDiligenceCard';
 
 export default function StartupDetailPage() {
   const { id } = useParams() as { id: string };
@@ -237,6 +238,9 @@ export default function StartupDetailPage() {
             </div>
           </div>
         </div>
+
+        {/* ── TinyFish AI Web Due Diligence Section ── */}
+        <TinyFishDueDiligenceCard startupId={id} companyName={startup.companyName} />
 
         {/* ── Two Columns Content: Details & Statutory ── */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

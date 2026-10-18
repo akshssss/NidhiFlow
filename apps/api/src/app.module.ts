@@ -13,6 +13,7 @@ import { LeaderboardModule } from './modules/leaderboard/leaderboard.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { UploadModule } from './modules/upload/upload.module';
+import { TinyFishModule } from './modules/tinyfish/tinyfish.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { UploadModule } from './modules/upload/upload.module';
     AdminModule,
     NotificationsModule,
     UploadModule,
+    TinyFishModule,
   ],
 })
 export class AppModule {}
